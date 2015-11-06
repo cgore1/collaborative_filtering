@@ -5,15 +5,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
-import java.util.List;
 
-import twitter4j.FilterQuery;
+import twitter4j.HashtagEntity;
+import twitter4j.MediaEntity;
 import twitter4j.StallWarning;
 import twitter4j.Status;
 import twitter4j.StatusDeletionNotice;
 import twitter4j.StatusListener;
 import twitter4j.TwitterStream;
 import twitter4j.TwitterStreamFactory;
+import twitter4j.URLEntity;
 
 /*
  * Copyright 2007 Yusuke Yamamoto
@@ -34,7 +35,7 @@ import twitter4j.TwitterStreamFactory;
 public class TwitterCrawler {
 	
 	private static String dataFileDir = "D://data//streams//";
-	private static String streamFilePrefix = "stream";
+	private static String streamFilePrefix = "newStream";
 	private static int streamFileIndex = 0;
 	private static long tweetWriteCount = 0;
 	
@@ -52,14 +53,17 @@ public class TwitterCrawler {
 
 	private static StatusListener listener = new StatusListener(){
 		
-		private TweetsParser parser = new TweetsParser();
+//		private TweetsParser parser = new TweetsParser();s
 		
 		private boolean shouldWriteToFile(Status status)
 		{
 //			boolean statusContainsLink = status.getText().contains("http://") || status.getText().contains("https://") || status.getText().contains("t.co")|| status.getText().contains("bit.ly") || status.getText().contains("</a>");
+			URLEntity[] urls  = status.getURLEntities();
+			MediaEntity[] mediaEntities = status.getMediaEntities();
+			if(urls.length == 0 && mediaEntities.length == 0)
+				return false;
 			
-			boolean statusContainsLink = status.getText().contains("://"); 
-			if (status.getLang().equalsIgnoreCase("EN") && statusContainsLink) 
+			if (status.getLang().equalsIgnoreCase("EN")) 
 			{
 				String authorName = status.getUser().getName();
 
@@ -81,40 +85,39 @@ public class TwitterCrawler {
 		{
 			if(!shouldWriteToFile(status))
 				return;
+			
+			URLEntity[] statusUrls  = status.getURLEntities();
+			MediaEntity[] mediaEntities = status.getMediaEntities();
 
-			List<Object> parsedList = parser.parseTweets(status.getText());
-			UrlsContainer urlsContainer = (UrlsContainer) parsedList.get(0);
-			
-			if(urlsContainer.getUrls().isEmpty())
-				return;
-			
 			String urls = "";
-			for(String url : urlsContainer.getUrls())
+			
+			for(URLEntity url : statusUrls)
 			{
-				urls = url + " " + urls;
+				urls = urls + " " + url.getExpandedURL();
 			}
 			
-			HashTagsContainer hashTagsContainer = (HashTagsContainer) parsedList.get(1);
-			String hashTags = "";
-			for(String hashTag : hashTagsContainer.getHashTags())
+			for(MediaEntity mediaEntity : mediaEntities)
 			{
+				urls = urls + " " + mediaEntity.getExpandedURL();
+			}
+			
+			HashtagEntity[] hashTagEntities = status.getHashtagEntities();
+			String hashTags = "";
+			
+			for(HashtagEntity hashTag : hashTagEntities)
+			{
+				String hashTagText = hashTag.getText();
 				// If hashtag contains a newline character, drop it. It is from
 				// another language, anyway we would get garbled data.
-				if(hashTag.contains("\n") || hashTag.contains("\r")) continue;
+				if(hashTagText.contains("\n") || hashTagText.contains("\r")) 
+					continue;
 				
-				hashTags = hashTags + "#" + hashTag;
+				hashTags = hashTags + "#" + hashTagText;
 			}
 			
 			// Clean the tweet text from newline characters.
 			String tweetText = status.getText().replace("\n", " ");
 			tweetText = tweetText.replace("\r", " ");
-//			"tweetId",
-//			"authorName",
-//			"authorId",
-//			"text",
-//			"urls",
-//			"hashtags",
-//			"created_at"
 			
 			String[] row = 
 				{
@@ -130,7 +133,7 @@ public class TwitterCrawler {
 			try {
 				fWriter.write(String.format("\n%s\t%s\t%s\t%s\t%s\t%s\t%s", (Object[])row));
 				tweetWriteCount++;
-				if(tweetWriteCount == 250000)
+				if(tweetWriteCount >= 250000)
 				{
 					initFile();
 				}
@@ -157,13 +160,14 @@ public class TwitterCrawler {
 		public void onStallWarning(StallWarning arg0) {
 		}
 	};
+	
 	private static String[] seeds = {
 			"movie", "movies", "trailor", "actor", "actress", "promotion", "acting", "imdb", "oscars", "gloden globe", "theatre", "showtime", "film festival", "sequel"
 	};
 	
 	private static void initFile()
 	{
-		File streamFile = new File(dataFileDir + streamFilePrefix + (++streamFileIndex) + ".txt");
+		File streamFile = new File(dataFileDir + streamFilePrefix + (streamFileIndex++) + ".txt");
 		boolean printHeader = !streamFile.exists();
 		try {
 			if(fWriter!=null)
@@ -183,6 +187,7 @@ public class TwitterCrawler {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+		tweetWriteCount = 0;
 	}
 
 	public static void main(String[] args) {
@@ -191,7 +196,8 @@ public class TwitterCrawler {
 		TwitterStream twitterStream = new TwitterStreamFactory().getInstance();
 		twitterStream.addListener(listener);
 		
-		FilterQuery query = new FilterQuery().language("EN").track(seeds);
-		twitterStream.filter(query);
+//		FilterQuery query = new FilterQuery().language("EN").track(seeds);
+//		twitterStream.filter(query);
+		twitterStream.sample();
 	}
 }
