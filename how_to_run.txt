@@ -1,0 +1,13 @@
+# collaborative_filtering
+space for collaborative develoment!
+
+Running the algo -
+parameters
+
+THRESHOLD_URL, THRESHOLD_USER - 3 graphs {5, 10 ,20}
+
+4 distance measures - 4 graphs {}
+
+weights - 5 graphs ( {0,1}, {0.25, 0.75}, {.5, .5}, {.75, .25}, {1,0})
+
+urls - {4 K}  ~1 hour 
