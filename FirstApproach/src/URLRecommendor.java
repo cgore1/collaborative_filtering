@@ -6,6 +6,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,11 +14,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+
+
 public class URLRecommendor {
+	
+	public enum Method
+	{
+		COSINE,
+		EUCLIDEAN,
+		JACCARD,
+		DICE
+	};
 
 	private static final double THRESHOLD_SCORE = 0.5; 
-	private static final int THRESHOLD_URL = 5;
-	private static final int THRESHOLD_USER = 5;
+	private static int THRESHOLD_URL;
+	private static int THRESHOLD_USER;
 	
 	private static Map<String, URL> urlsMap = new HashMap<String, URL>(); 
 	private static Set<String> userSet = new HashSet<String>();
@@ -30,12 +41,18 @@ public class URLRecommendor {
 		List<Double> scores = new ArrayList<Double>();
 		List<Double> actualValues = new ArrayList<Double>();
 		
+		// Vary parameters here..
+		THRESHOLD_URL = 5;
+		THRESHOLD_USER = 5;
+		weightOfUserSim = 0.5;
 		int urlIndex = 4000;
-		for(URL url : urlsMap.values())
+		Method method = Method.COSINE;
+		
+		for(URL url : urlsMap.values()) 
 		{
 			for(String user : url.users)
 			{
-				double score = computeRecommendationScore(user, url);
+				double score = computeRecommendationScore(user, url, method);
 				if(score != -1)
 				{
 					score = (score > THRESHOLD_SCORE) ? 1 : 0;
@@ -51,7 +68,7 @@ public class URLRecommendor {
 			{
 				if(!url.users.contains(user))
 				{
-					double score = computeRecommendationScore(user, url);
+					double score = computeRecommendationScore(user, url, method);
 					if(score != -1)
 					{
 						score = (score > THRESHOLD_SCORE) ? 1 : 0;
@@ -72,6 +89,8 @@ public class URLRecommendor {
 		
 		log("Recommendations done!!\n");
 	}
+
+	static double weightOfUserSim = 0.5;
 
 	private static void initUrls() 
 	{
@@ -156,14 +175,12 @@ public class URLRecommendor {
 		}
 	}
 
-	static double weightOfUserSim = 0.5;
-	
 	private static double computeWeightedScore(double userSim, double hashTagSim)
 	{
 		return userSim * weightOfUserSim + hashTagSim * (1 - weightOfUserSim);
 	}
 	
-	private static double computeRecommendationScore(String user, URL u1)
+	private static double computeRecommendationScore(String user, URL u1, Method method)
 	{
 		Map<String, URL> user_urlsMap = new HashMap<String, URL>(); 
 		for( URL u: urlsMap.values())
@@ -184,7 +201,7 @@ public class URLRecommendor {
 		int index=0;
 		for(URL u2:user_urlsMap.values())
 		{
-			userDistances[index]=SimilarityCalculator.getCosineDistance(u1.users,u2.users);
+			userDistances[index]=SimilarityCalculator.getDistance(u1.users,u2.users, method);
 
 			if(u1.hashTags.size() == 0 || u2.hashTags.size() == 0)
 			{
@@ -193,7 +210,7 @@ public class URLRecommendor {
 			}
 			else
 			{
-				hashtagDistances[index] = SimilarityCalculator.getCosineDistance(u1.hashTags,u2.hashTags);
+				hashtagDistances[index] = SimilarityCalculator.getDistance(u1.hashTags,u2.hashTags, method);
 //				urlDistance[index]=(userDistances[index] + hashtagDistances[index])/2;
 				urlDistance[index] = computeWeightedScore(userDistances[index], hashtagDistances[index]);
 			}
@@ -201,7 +218,15 @@ public class URLRecommendor {
 			index++;
 		}
 
-		Arrays.sort(urlDistance);
+		if(method.equals(Method.EUCLIDEAN))
+		{
+			Arrays.sort(urlDistance);
+		}
+		else
+		{
+ 			Arrays.sort(Arrays.asList(urlDistance).toArray(), Collections.reverseOrder());
+		}
+		
 		int avgsize = (urlDistance.length + 1)/2;
 		double averageDistance=0;
 		double recommendationScore;
@@ -211,10 +236,6 @@ public class URLRecommendor {
 		}
 
 		recommendationScore = averageDistance/avgsize;
-//		if(recommendationScore > THRESHOLD_SCORE)
-//		{
-//			System.out.println("URL "+u1.url+" is recommended with score "+recommendationScore);
-//		}
 		return recommendationScore;
 	}
 	

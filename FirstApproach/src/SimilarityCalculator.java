@@ -4,6 +4,22 @@ import java.util.List;
 import java.util.Set;
 
 public class SimilarityCalculator {
+	
+	public static double getDistance(List<String> users, List<String> users2, URLRecommendor.Method method)
+	{
+		switch (method) {
+		case COSINE:
+			return getCosineDistance(users, users2);
+		case EUCLIDEAN:
+			return getEuclideanDistance(users, users2);
+		case DICE:
+			return getDiceDistance(users, users2);
+		case JACCARD:
+			return getJaccardDistance(users, users2);
+		}
+		return 0;
+	}
+	
 	public static double getCosineDistance(List<String> users, List<String> users2)
 	{
 		int magnitude1,magnitude2;
