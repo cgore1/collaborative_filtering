@@ -35,7 +35,7 @@ public class SimilarityCalculator {
 		int magnitude=uncommon.size();
 		double euclideanDistance=Math.sqrt(magnitude);
 
-		return euclideanDistance;   
+		return euclideanDistance / Math.sqrt(users.size());   
 	}
 
 	public static double getJaccardDistance(List<String> users, List<String> users2)

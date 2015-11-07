@@ -16,8 +16,8 @@ import java.util.Set;
 public class URLRecommendor {
 
 	private static final double THRESHOLD_SCORE = 0.5; 
-	private static final int THRESHOLD_URL = 30;
-	private static final int THRESHOLD_USER = 30;
+	private static final int THRESHOLD_URL = 5;
+	private static final int THRESHOLD_USER = 5;
 	
 	private static Map<String, URL> urlsMap = new HashMap<String, URL>(); 
 	private static Set<String> userSet = new HashSet<String>();
@@ -30,6 +30,7 @@ public class URLRecommendor {
 		List<Double> scores = new ArrayList<Double>();
 		List<Double> actualValues = new ArrayList<Double>();
 		
+		int urlIndex = 10000;
 		for(URL url : urlsMap.values())
 		{
 			for(String user : url.users)
@@ -37,14 +38,34 @@ public class URLRecommendor {
 				double score = computeRecommendationScore(user, url);
 				if(score != -1)
 				{
+					score = (score > THRESHOLD_SCORE) ? 1 : 0;
 					scores.add(score);
 					actualValues.add(1.0);
+					
 				}
 			}
 			
-//			index--;
-//			if(index == 0)
-//				break;
+			int index = url.users.size() * 2;
+			
+			for(String user : userSet)
+			{
+				if(!url.users.contains(user))
+				{
+					double score = computeRecommendationScore(user, url);
+					if(score != -1)
+					{
+						score = (score > THRESHOLD_SCORE) ? 1 : 0;
+						scores.add(score);
+						actualValues.add(0.0);
+					}
+				}
+				
+				index--;
+				if(index == 0) break;
+			}
+			
+			urlIndex --;
+			if(urlIndex == 0) break;
 		}
 		
 		System.out.println("Error is " + Evaluator.getRMSError(actualValues, scores));
@@ -135,6 +156,13 @@ public class URLRecommendor {
 		}
 	}
 
+	static double weightOfUserSim = 0.5;
+	
+	private static double computeWeightedScore(double userSim, double hashTagSim)
+	{
+		return userSim * weightOfUserSim + hashTagSim * (1 - weightOfUserSim);
+	}
+	
 	private static double computeRecommendationScore(String user, URL u1)
 	{
 		Map<String, URL> user_urlsMap = new HashMap<String, URL>(); 
@@ -166,7 +194,8 @@ public class URLRecommendor {
 			else
 			{
 				hashtagDistances[index] = SimilarityCalculator.getCosineDistance(u1.hashTags,u2.hashTags);
-				urlDistance[index]=(userDistances[index] + hashtagDistances[index])/2;
+//				urlDistance[index]=(userDistances[index] + hashtagDistances[index])/2;
+				urlDistance[index] = computeWeightedScore(userDistances[index], hashtagDistances[index]);
 			}
 
 			index++;
