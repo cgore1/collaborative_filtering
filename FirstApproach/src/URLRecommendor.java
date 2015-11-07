@@ -30,7 +30,7 @@ public class URLRecommendor {
 		List<Double> scores = new ArrayList<Double>();
 		List<Double> actualValues = new ArrayList<Double>();
 		
-		int urlIndex = 10000;
+		int urlIndex = 4000;
 		for(URL url : urlsMap.values())
 		{
 			for(String user : url.users)
