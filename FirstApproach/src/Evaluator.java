@@ -2,7 +2,7 @@ import java.util.List;
 
 public class Evaluator {
 
-	public static double getRMSError(List<Double> actualValues, List<Double> scores)
+	public static double getRMSError(List<Integer> actualValues, List<Integer> scores)
 	{
 		double RMSE = 0;
 		

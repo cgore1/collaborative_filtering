@@ -7,13 +7,13 @@ import java.sql.Statement;
 
 public class PopulateDatabase {
 
-    private static int START_INDEX = 3789414 - 10000;
+    private static int START_INDEX = 0;
     private static int END_INDEX = 3789414;
 	
 	public static void main(String[] args) {
 	    
 	    try {
-	    	Connection readConnection = DriverManager.getConnection("jdbc:sqlite:D:\\data\\streams\\twitter.db");
+	    	Connection readConnection = DriverManager.getConnection("jdbc:sqlite:D:\\data\\streams\\searchesDB.db");
 	    	Connection writeConnection = DriverManager.getConnection("jdbc:sqlite:D:\\data\\streams\\urldb.db");
 	    	
 	        Statement readStatement = readConnection.createStatement();

@@ -1,3 +1,8 @@
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -14,8 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
-
 public class URLRecommendor {
 	
 	public enum Method
@@ -29,65 +32,128 @@ public class URLRecommendor {
 	private static final double THRESHOLD_SCORE = 0.5; 
 	private static int THRESHOLD_URL;
 	private static int THRESHOLD_USER;
+	private static final int URLS_TESTED = 4000;
 	
 	private static Map<String, URL> urlsMap = new HashMap<String, URL>(); 
 	private static Set<String> userSet = new HashSet<String>();
+	private static int hashCount = 1;
 	
 	public static void main(String[] args) {
-		log("Initializing..");
-		initUrls();
-		log("Init done!\n");
-		
-		List<Double> scores = new ArrayList<Double>();
-		List<Double> actualValues = new ArrayList<Double>();
-		
-		// Vary parameters here..
-		THRESHOLD_URL = 5;
-		THRESHOLD_USER = 5;
-		weightOfUserSim = 0.5;
-		int urlIndex = 4000;
-		Method method = Method.COSINE;
-		
-		for(URL url : urlsMap.values()) 
-		{
-			for(String user : url.users)
-			{
-				double score = computeRecommendationScore(user, url, method);
-				if(score != -1)
-				{
-					score = (score > THRESHOLD_SCORE) ? 1 : 0;
-					scores.add(score);
-					actualValues.add(1.0);
-					
-				}
-			}
-			
-			int index = url.users.size() * 2;
-			
-			for(String user : userSet)
-			{
-				if(!url.users.contains(user))
-				{
-					double score = computeRecommendationScore(user, url, method);
-					if(score != -1)
-					{
-						score = (score > THRESHOLD_SCORE) ? 1 : 0;
-						scores.add(score);
-						actualValues.add(0.0);
-					}
-				}
-				
-				index--;
-				if(index == 0) break;
-			}
-			
-			urlIndex --;
-			if(urlIndex == 0) break;
+	
+		File output = new File("D:\\data\\streams\\output.txt");
+		boolean writeHeader = !output.exists();
+		OutputStreamWriter fWriter = null;
+		try {
+			fWriter = new OutputStreamWriter(new FileOutputStream(output, true));
+		} catch (IOException e) {
+			System.err.println(e);
+			log("Can't open output file.. Exiting..");
 		}
 		
-		System.out.println("Error is " + Evaluator.getRMSError(actualValues, scores));
-		
-		log("Recommendations done!!\n");
+		try
+		{
+			String format = "%s,%s,%s,%s,%s,%s,%s,%s,%s\n";
+			if(writeHeader)
+			{
+				String headers[] = { "threshold", "active_users", "active_urls", "hashtags", "similarity_measure",
+						"user_similarity_weight", "hashTag_similarity_weight", "urls_tested", "RMSE" };
+				try {
+					fWriter.write(String.format(format, headers));
+					fWriter.flush();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					return;
+				}
+			}
+
+			double[] weights = {0.0, 0.25, 0.5, 0.75, 1.0};
+			
+			log("Initializing..");
+			initUrls();
+			log("Init done!\n");
+			
+			for(Method method : Method.values())
+			{
+				for(double weight : weights)
+				{
+					// Vary parameters here..
+					THRESHOLD_URL = 20;
+					THRESHOLD_USER = 20;
+					weightOfUserSim = weight;
+					int urlIndex = URLS_TESTED;
+					
+					log("Calculating with "+ method.toString() + " and weight of user sim ="+weight);
+
+					List<Integer> scores = new ArrayList<Integer>();
+					List<Integer> actualValues = new ArrayList<Integer>();
+
+					for(URL url : urlsMap.values()) 
+					{
+						for(String user : url.users)
+						{
+							double score = computeRecommendationScore(user, url, method);
+							if(score != -1)
+							{
+								scores.add((score > THRESHOLD_SCORE) ? 1 : 0);
+								actualValues.add(1);
+
+							}
+						}
+
+						int index = url.users.size();
+
+						for(String user : userSet)
+						{
+							if(!url.users.contains(user))
+							{
+								double score = computeRecommendationScore(user, url, method);
+								if(score != -1)
+								{
+									scores.add((score > THRESHOLD_SCORE) ? 1 : 0);
+									actualValues.add(0);
+								}
+
+								index--;
+								if(index == 0) break;
+							}
+						}
+
+						urlIndex --;
+						if(urlIndex == 0) break;
+					}
+
+					double rmse = Evaluator.getRMSError(actualValues, scores);
+					System.out.println("Error is " + rmse);
+					
+					/*
+					 * "threshold", "active_users", "active_urls", "hashtags", "similarity_measure",
+						"user_similarity_weight", "hashTag_similarity_weight", "urls_tested", "RMSE"
+					 */
+					String[] values = {THRESHOLD_URL +"", userSet.size()+"", urlsMap.size()+""
+							, hashCount + "", method.toString(), weightOfUserSim+ "",
+							(1-weightOfUserSim)+"", URLS_TESTED + "", rmse+""};
+					try {
+						fWriter.write(String.format(format, values));
+						fWriter.flush();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+
+					log("Recommendations done!!\n");
+				}
+			}
+		}
+		finally
+		{
+			try {
+				fWriter.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 
 	static double weightOfUserSim = 0.5;
@@ -135,7 +201,6 @@ public class URLRecommendor {
 			// hashtags
 			log("calc hashtags..");
 
-			int hashCount = 1;
 			Statement hashTagStatement = connection.createStatement();
 			String hashTagQuery = "SELECT url, hashtag "
 					+ " FROM url_hashtag "
