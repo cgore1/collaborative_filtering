@@ -30,8 +30,8 @@ public class URLRecommendor {
 	};
 
 	private static final double THRESHOLD_SCORE = 0.5; 
-	private static int THRESHOLD_URL;
-	private static int THRESHOLD_USER;
+	private static int THRESHOLD_URL = 20;
+	private static int THRESHOLD_USER = 20;
 	private static final int URLS_TESTED = 4000;
 	
 	private static Map<String, URL> urlsMap = new HashMap<String, URL>(); 
@@ -78,8 +78,6 @@ public class URLRecommendor {
 				for(double weight : weights)
 				{
 					// Vary parameters here..
-					THRESHOLD_URL = 20;
-					THRESHOLD_USER = 20;
 					weightOfUserSim = weight;
 					int urlIndex = URLS_TESTED;
 					
